@@ -29,7 +29,8 @@ func (t String) String() (ret string, ok bool) {
   return
 }
 
-// ToString behaves just like String, but omits the second return value. Returns the zero value of type string in case of an error.
+// ToString behaves just like String, but omits the second return value. Returns the zero value of type string in
+// case of an error.
 func (t String) ToString() string {
   ret, _ := t.String()
   return ret
@@ -51,7 +52,8 @@ func (t String) Bool() (ret bool, ok bool) {
   return
 }
 
-// ToBool behaves just like Bool, but omits the second return value. Returns the zero value of type bool in case of an error.
+// ToBool behaves just like Bool, but omits the second return value. Returns the zero value of type bool in case of
+// an error.
 func (t String) ToBool() bool {
   ret, _ := t.Bool()
   return ret
@@ -72,7 +74,8 @@ func (t String) Int() (ret int64, ok bool) {
   return
 }
 
-// ToInt behaves just like Int, but omits the second return value. Returns the zero value of type int64 in case of an error.
+// ToInt behaves just like Int, but omits the second return value. Returns the zero value of type int64 in case of
+// an error.
 func (t String) ToInt() int64 {
   ret, _ := t.Int()
   return ret
@@ -93,7 +96,8 @@ func (t String) Uint() (ret uint64, ok bool) {
   return
 }
 
-// ToUint behaves just like Uint, but omits the second return value. Returns the zero value of type uint64 in case of an error.
+// ToUint behaves just like Uint, but omits the second return value. Returns the zero value of type uint64 in case of
+// an error.
 func (t String) ToUint() uint64 {
   ret, _ := t.Uint()
   return ret
@@ -114,7 +118,8 @@ func (t String) Float() (ret float64, ok bool) {
   return
 }
 
-// ToFloat behaves just like Float, but omits the second return value. Returns the zero value of type float64 in case of an error.
+// ToFloat behaves just like Float, but omits the second return value. Returns the zero value of type float64 in case
+// of an error.
 func (t String) ToFloat() float64 {
   ret, _ := t.Float()
   return ret

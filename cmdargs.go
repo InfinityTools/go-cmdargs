@@ -85,7 +85,8 @@ func (param *Parameter) AddParameter(name string, aliases []string, numArgs int)
   }
 }
 
-// RemoveParameter removes the parameter of given name. Returns whether there was a parameter definition that could be removed.
+// RemoveParameter removes the parameter of given name. Returns whether there was a parameter definition that could
+// be removed.
 func (param *Parameter) RemoveParameter(name string) bool {
   name = getOptionName(name)
   p, ok := param.aliases[name]
@@ -110,11 +111,14 @@ func (param *Parameter) RemoveParameter(name string) bool {
   return ok
 }
 
-// Evaluate parses and evaluates the arguments in the given string array, so that they can be directly accessed by the respective argument functions.
+// Evaluate parses and evaluates the arguments in the given string array, so that they can be directly accessed by
+// the respective argument functions.
 //
 // Parameter evaluation stops at the first occurence of a non-parameter string.
-// Remaining entries will be stored as an unparsed list of extra arguments. First entry will be stored as application name, unless it is identified as an option.
-// Multiple instances of the same parameter (specified either by name or alias) will override each other. Only the last instance will be preserved.
+// Remaining entries will be stored as an unparsed list of extra arguments. First entry will be stored as application
+// name, unless it is identified as an option.
+// Multiple instances of the same parameter (specified either by name or alias) will override each other. Only the last
+// instance will be preserved.
 //
 // Returns an error if a parameter is found that doesn't match any entries added by AddParameter.
 func (param *Parameter) Evaluate(args []string) error {
