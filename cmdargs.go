@@ -365,5 +365,5 @@ func getOptionName(name string) string {
 
 // Used internally. Returns whether the argument qualifies as an option name.
 func isOption(name string) bool {
-  return (len(name) >= 2 && name[:2] == "--") || (len(name) >= 1 && name[:1] == "-")
+  return (len(name) > 2 && name[:2] == "--") || (len(name) > 1 && name[:1] == "-")
 }
