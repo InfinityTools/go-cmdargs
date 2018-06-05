@@ -304,7 +304,7 @@ func (param *Parameter) evalArg(args []string, index int) (name string, arg *opt
       s += "="
       s += args[i]
     }
-    arg.value = append(arg.value, evalArg(s))
+    arg.value = append(arg.value, trimArg(s))
     numArgs--
   }
 
@@ -317,7 +317,7 @@ func (param *Parameter) evalArg(args []string, index int) (name string, arg *opt
   // parsing remaining option arguments
   for ; numArgs > 0; numArgs, newIdx = numArgs-1, newIdx+1 {
     a := args[newIdx]
-    arg.value = append(arg.value, evalArg(a))
+    arg.value = append(arg.value, trimArg(a))
   }
 
   name = param.getLongOptionName(name)  // always returns long option name
@@ -326,7 +326,7 @@ func (param *Parameter) evalArg(args []string, index int) (name string, arg *opt
 }
 
 // Used internally. Removes spaces and double-quotes from arguments if needed.
-func evalArg(arg string) Generic {
+func trimArg(arg string) Generic {
   // strip double-quotes from arguments, but leave single quotes unchanged
   arg = strings.TrimSpace(arg)
   if len(arg) > 0 {
