@@ -12,34 +12,49 @@ import (
 
 // Definition for a single parameter
 type paramType struct {
-  name      string      // Long name of the parameter (without prefix)
-  numArgs   int         // Expected number of arguments.
+  name      string      // Normalized long name of the parameter (i.e. without prefix)
+  numArgs   int         // Expected number of arguments
 }
 
 // Storage for a single argument
 type optionType struct {
-  value     []Generic
-  position  int
+  name      string      // Normalized long parameter name
+  value     GenericList // List of option arguments
 }
 
-// Maps parameter/argument entries
+// Defines a slice of Generic datatypes.
+type GenericList []Generic
+
+// Maps parameter entries
 type paramMap map[string]*paramType
-type optionMap map[string]*optionType
+
+// List of options
+type optionList []*optionType
 
 type Parameter struct {
   aliases     paramMap    // map for parameter/alias names to parameter definitions
 
-  options     optionMap   // map for parameter names to evaluated command line options
-  extra       []Generic   // Remaining list of unparsed command line arguments (e.g. file names, etc.)
+  options     optionList  // Options are listed sequentially by their appearance in the command line arguments list
+  extra       GenericList // Remaining list of unparsed command line arguments (e.g. file names, etc.)
   self        string      // Contains the application name (args[0]), unless it is identified as an option.
+}
+
+// Argument structure contains information about a single argument.
+type Argument struct {
+  // Index is the absolute option index as specified at the command line.
+  Index     int
+  // Name indicates the normalized long name of the option, i.e. without leading hyphens.
+  Name      string
+  // Arguments stores arguments needed by this option. It can be empty, but is never nil.
+  Arguments GenericList
 }
 
 
 // Create creates an empty Parameter structure
 func Create() *Parameter {
   p := Parameter { aliases: make(paramMap),
-                   options: make(optionMap),
-                   extra: make([]Generic, 0),
+                   options: make(optionList, 0),
+                   extra: make(GenericList, 0),
                    self: "" }
   return &p
 }
@@ -54,7 +69,7 @@ func Create() *Parameter {
 // Note:
 // By convention, long option names start with two hyphens and single character options start with a single hyphen.
 // Parameter names and aliases are stored internally case-sensitive and with their prefix stripped.
-// For example, "--A" and "-A" will override each other, but "-A" and "-a" will not.
+// For example, "--A" and "-A" are treated as identical, but "-A" and "-a" are not.
 func (param *Parameter) AddParameter(name string, aliases []string, numArgs int) {
   name = getOptionName(name)
   if len(name) == 0 { return }
@@ -104,10 +119,8 @@ func (param *Parameter) RemoveParameter(name string) bool {
 // Parameter evaluation stops at the first occurence of a non-parameter string.
 // Remaining entries will be stored as an unparsed list of extra arguments. First entry will be stored as application
 // name, unless it is identified as an option.
-// Multiple instances of the same parameter (specified either by name or alias) will override each other. Only the last
-// instance will be preserved.
 //
-// Returns an error if a parameter is found that doesn't match any entries added by AddParameter.
+// Returns an error if a parameter is found that doesn't match any parameter definitions added by AddParameter.
 func (param *Parameter) Evaluate(args []string) error {
   var err error = nil
   if args == nil || len(args) == 0 { return err }
@@ -122,7 +135,6 @@ func (param *Parameter) Evaluate(args []string) error {
   }
 
   // parsing options
-  position := 0
   for argIdx < len(args) {
     var name string
     var arg *optionType
@@ -132,13 +144,7 @@ func (param *Parameter) Evaluate(args []string) error {
     if name == "" { break }     // remaining entries are not options
     if argIdx == oldIdx { return errors.New("Fatal: Deadlock while evaluating parameters") }  // should never happen!
     name = getOptionName(name)  // normalizing option name
-    arg.position = position
-    if oldArg, ok := param.options[name]; ok {
-      oldArg.value = arg.value
-    } else {
-      param.options[name] = arg
-    }
-    position++
+    param.options = append(param.options, arg)
   }
 
   // initializing extra arguments
@@ -191,63 +197,103 @@ func (param *Parameter) GetArgLength() int {
 // GetArgExists returns whether the argument of given name has been evaluated by a previous
 // call to Evaluate. It considers option names and aliases.
 func (param *Parameter) GetArgExists(name string) bool {
-  exists := false
   name = param.getLongOptionName(name)
   if len(name) > 0 {
-    _, exists = param.options[name]
-  }
-  return exists
-}
-
-// GetArgPosition returns the position of the specified option in the command line options list.
-func (param *Parameter) GetArgPosition(name string) (pos int, exists bool) {
-  name = param.getLongOptionName(name)
-  if len(name) > 0 {
-    arg, exists := param.options[name]
-    if exists {
-      pos = arg.position
+    for _, option := range param.options {
+      if option.name == name {
+        return true
+      }
     }
   }
-  return
+  return false
 }
 
-// GetArgNameByPosition returns the name of the option at the specified position.
-func (param *Parameter) GetArgNameByPosition(pos int) (name string, exists bool) {
-  if pos < 0 || pos >= len(param.options) { return }
-  for key, arg := range param.options {
-    if arg.position == pos {
-      name = key
-      exists = true
-      break
-    }
-  }
-  return
-}
-
-// GetArgParamLength returns the number of additional arguments available for the specified option.
+// GetArgIndex returns the index of the specified option in the command line options list.
 //
-// Options with a variable number of arguments will return the actually parsed number of arguments.
-// Function returns -1 for non-existing options.
-func (param *Parameter) GetArgParamLength(name string) int {
-  name = param.getLongOptionName(name)
-  if len(name) == 0 { return -1 }
-  arg, exists := param.options[name]
-  if !exists { return -1 }
-  return len(arg.value)
-}
-
-// GetArgParam returns the argument of the given name at specified index.
+// name specifies the option name or alias.
+// startIndex indicates the position where to start the search. Positive indices are relative to the first option in
+// the list. Specify a negative index to search backwards. Negative indices are relative to the position directly
+// behind the last option in the list.
 //
-// value contains the returned argument value. exists returns whether the value (either option or argument) exists.
-func (param *Parameter) GetArgParam(name string, index int) (value Generic, exists bool) {
+// Returns a positive index when searching forward and a negative index when searching backwards. Both index variants
+// can be fed directly to the GetArgAt function to return the Argument structure of the given option.
+func (param *Parameter) GetArgIndex(name string, startIndex int) (pos int, exists bool) {
+  pos = startIndex
   name = param.getLongOptionName(name)
   if len(name) == 0 { return }
 
-  var arg *optionType
-  arg, exists = param.options[name]
-  if !exists { return }
-  if index < 0 || index >= len(arg.value) { exists = false; return }
-  value = arg.value[index]
+  // initializing forward/backward search
+  reverse := startIndex < 0
+  var limit, inc int
+  if reverse {
+    startIndex = len(param.options) + startIndex
+    if startIndex < 0 { return }
+    limit = -1
+    inc = -1
+  } else {
+    if startIndex >= len(param.options) { return }
+    limit = len(param.options)
+    inc = 1
+  }
+
+  for pos = startIndex; pos != limit; pos += inc {
+    option := param.options[pos]
+    exists = (option.name == name)
+    if exists { break }
+  }
+
+  if reverse {
+    pos -= len(param.options)
+  }
+
+  return
+}
+
+// GetArgAt returns the option at the specified index as an Argument structure.
+//
+// If given index is positive, the function returns the argument relative to the first argument in the list.
+// If given index is negative, the function returns the argument relative to the position directly behind the
+// last option in the list.
+//
+// The second return value indicates success of the operation.
+func (param *Parameter) GetArgAt(index int) (arg Argument, err error) {
+  if index < 0 {
+    index = len(param.options) + index
+  }
+
+  if index < 0 || index >= len(param.options) {
+    err = errors.New("Parameter.GetArgNameByPosition: Invalid position")
+    return
+  }
+
+  option := param.options[index]
+  arg = Argument{Index: index, Name: option.name, Arguments: make(GenericList, len(option.value))}
+  copy(arg.Arguments, option.value)
+
+  return
+}
+
+// GetFirstArgOf returns the first instance of the option with the given name.
+func (param *Parameter) GetFirstArgOf(name string) (arg Argument, exists bool) {
+  var idx int
+  idx, exists = param.GetArgIndex(name, 0)
+  if exists {
+    var err error
+    arg, err = param.GetArgAt(idx)
+    exists = (err == nil)
+  }
+  return
+}
+
+// GetLastArgOf returns the last instance of the option with the given name.
+func (param *Parameter) GetLastArgOf(name string) (arg Argument, exists bool) {
+  var idx int
+  idx, exists = param.GetArgIndex(name, -1)
+  if exists {
+    var err error
+    arg, err = param.GetArgAt(idx)
+    exists = (err == nil)
+  }
   return
 }
 
@@ -255,17 +301,17 @@ func (param *Parameter) GetArgParam(name string, index int) (value Generic, exis
 // Used internally. Resets all Parameter fields that are related to argument evaluation to initial state.
 func (param *Parameter) reset() {
   if len(param.options) != 0 {
-    param.options = make(optionMap)
+    param.options = make(optionList, 0)
   }
   if len(param.extra) != 0 {
-    param.extra = make([]Generic, 0)
+    param.extra = make(GenericList, 0)
   }
   param.self = ""
 }
 
 // Used internally. Attempts to parse the next available command line argument.
 func (param *Parameter) evalArg(args []string, index int) (name string, arg *optionType, newIdx int, err error) {
-  arg = &optionType{value: make([]Generic, 0), position: -1} // position is set by the calling function
+  arg = &optionType{name: "", value: make(GenericList, 0) }
   newIdx = index
   if newIdx < 0 || newIdx >= len(args) { return }
 
@@ -308,6 +354,7 @@ func (param *Parameter) evalArg(args []string, index int) (name string, arg *opt
   }
 
   name = param.getLongOptionName(name)  // always returns long option name
+  arg.name = name
 
   return
 }
