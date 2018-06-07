@@ -23,12 +23,10 @@ type optionType struct {
 }
 
 // Maps parameter/argument entries
-type paramList []*paramType
 type paramMap map[string]*paramType
 type optionMap map[string]*optionType
 
 type Parameter struct {
-  definitions paramList   // sequence of parameter definitions
   aliases     paramMap    // map for parameter/alias names to parameter definitions
 
   options     optionMap   // map for parameter names to evaluated command line options
@@ -39,8 +37,7 @@ type Parameter struct {
 
 // Create creates an empty Parameter structure
 func Create() *Parameter {
-  p := Parameter { definitions: make(paramList, 0),
-                   aliases: make(paramMap),
+  p := Parameter { aliases: make(paramMap),
                    options: make(optionMap),
                    extra: make([]Generic, 0),
                    self: "" }
@@ -71,7 +68,6 @@ func (param *Parameter) AddParameter(name string, aliases []string, numArgs int)
   p, ok := param.aliases[name]
   if !ok {
     p = &paramType{name: name, numArgs: 0}
-    param.definitions = append(param.definitions, p)
   }
   p.numArgs = numArgs
 
@@ -91,19 +87,10 @@ func (param *Parameter) RemoveParameter(name string) bool {
   name = getOptionName(name)
   p, ok := param.aliases[name]
   if ok {
-    // removing definition object from array
-    for idx := 0; idx < len(param.definitions); idx++ {
-      if param.definitions[idx] == p {
-        if idx+1 < len(param.definitions) {
-          copy(param.definitions[idx:], param.definitions[idx+1:])
-        }
-        param.definitions = param.definitions[:len(param.definitions)-1]
-        break
-      }
-    }
     // removing definition references from alias map
+    name = p.name
     for alias, def := range param.aliases {
-      if def == p {
+      if name == def.name {
         delete(param.aliases, alias)
       }
     }
