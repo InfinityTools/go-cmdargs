@@ -12,15 +12,15 @@ func main() {
 
   // The following options should be recognized and evaluated by out example code:
   // Specifying double or single hyphen prefixes is optional.
-  // A simple option with a single alias and no additional arguments. Parameter names and aliases are stored 
-  // case-sensitive, but without hyphens internally. So "--A" and "-A" are treated as identical options, but "-A" 
+  // A simple option with a single alias and no additional arguments. Parameter names and aliases are stored
+  // case-sensitive, but without hyphens internally. So "--A" and "-A" are treated as identical options, but "-A"
   // and "-a" are not.
   parameters.AddParameter("help", []string{"h"}, 0)
-  // An option without alias that requires one additional argument. Arguments for options are stored as Generic 
+  // An option without alias that requires one additional argument. Arguments for options are stored as Generic
   // types internally. You can convert them to various basic datatypes by the available interface functions.
   // To convert a Generic to a string, use either String(), for additional type checking, or ToString().
   parameters.AddParameter("prefix", nil, 1)
-  // An option with two aliases that requires one additional argument. To convert the Generic argument into a 
+  // An option with two aliases that requires one additional argument. To convert the Generic argument into a
   // numeric datatype, use Int() to return a signed int or Uint() to return an unsigned int.
   // Both function return the converted value and a type check. Use ToInt() or ToUint() to skip the type check.
   // Conversion supports the following notations: decimal, hexadecimal (with "0x" prefix) and octal (with "0" prefix).
